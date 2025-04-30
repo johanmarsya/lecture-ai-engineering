@@ -4,7 +4,7 @@ import torch
 from transformers import pipeline
 import streamlit as st
 import time
-from config import MODEL_NAME
+from config import MODEL_NAMES
 from huggingface_hub import login
 
 # モデルをキャッシュして再利用

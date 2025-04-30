@@ -5,13 +5,21 @@ import llm                  # LLMモジュール
 import database             # データベースモジュール
 import metrics              # 評価指標モジュール
 import data                 # データモジュール
-import torch
-from transformers import pipeline
-from config import MODEL_NAME
-from huggingface_hub import HfFolder
+from config import MODEL_NAMES
+from huggingface_hub import login
 
 # --- アプリケーション設定 ---
-st.set_page_config(page_title="Gemma Chatbot", layout="wide")
+st.set_page_config(page_title="Multi-Model Chatbot", layout="wide")
+
+# --- Hugging Faceトークンの取得 ---
+# トークンを取得してログイン
+try:
+    hf_token = st.secrets["huggingface"]["token"]
+    login(token=hf_token)
+    st.info("Hugging Faceにログインしました。")
+except Exception as e:
+    st.error(f"Hugging Faceのログインに失敗しました。：{e}")
+    st.stop()
 
 # --- 初期化処理 ---
 # NLTKデータのダウンロード（初回起動時など）
@@ -23,31 +31,19 @@ database.init_db()
 # データベースが空ならサンプルデータを投入
 data.ensure_initial_data()
 
-# LLMモデルのロード（キャッシュを利用）
-# モデルをキャッシュして再利用
-@st.cache_resource
-def load_model():
-    """LLMモデルをロードする"""
-    try:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        st.info(f"Using device: {device}") # 使用デバイスを表示
-        pipe = pipeline(
-            "text-generation",
-            model=MODEL_NAME,
-            model_kwargs={"torch_dtype": torch.bfloat16},
-            device=device
-        )
-        st.success(f"モデル '{MODEL_NAME}' の読み込みに成功しました。")
-        return pipe
-    except Exception as e:
-        st.error(f"モデル '{MODEL_NAME}' の読み込みに失敗しました: {e}")
-        st.error("GPUメモリ不足の可能性があります。不要なプロセスを終了するか、より小さいモデルの使用を検討してください。")
-        return None
-pipe = llm.load_model()
+# LLMモデルのロード
+models = {}
+for model_key, model_name in MODEL_NAMES.items():
+    models[model_key] = llm.load_model(model_name)
+    if not models[model_key]:
+        st.error(f"モデル '{model_name}' の読み込みに失敗しました。")
+        st.stop()
+
+
 
 # --- Streamlit アプリケーション ---
-st.title("🤖 Gemma 2 Chatbot with Feedback")
-st.write("Gemmaモデルを使用したチャットボットです。回答に対してフィードバックを行えます。")
+st.title("🤖 Multi-Model Chatbot with Feedback")
+st.write("Gemma-2-2BまたはXGLM-564Mを使って対話できます。フィードバックも送信可能！")
 st.markdown("---")
 
 # --- サイドバー ---
@@ -67,7 +63,7 @@ page = st.sidebar.radio(
 
 # --- メインコンテンツ ---
 if st.session_state.page == "チャット":
-    if pipe:
+    if all(models.values()):
         ui.display_chat_page(pipe)
     else:
         st.error("チャット機能を利用できません。モデルの読み込みに失敗しました。")
@@ -76,6 +72,6 @@ elif st.session_state.page == "履歴閲覧":
 elif st.session_state.page == "サンプルデータ管理":
     ui.display_data_page()
 
-# --- フッターなど（任意） ---
+# --- フッター ---
 st.sidebar.markdown("---")
-st.sidebar.info("開発者: [Your Name]")
+st.sidebar.info("開発者: Johan Marsya")
