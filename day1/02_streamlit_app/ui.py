@@ -73,14 +73,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# サイドバーでページナビゲーション
-st.sidebar.title("ナビゲーション")
-page = st.sidebar.radio(
-    "ページを選択",
-    ["チャット", "履歴閲覧", "データ管理"],
-    label_visibility="collapsed"
-)
-
 # チャットページ
 def display_chat_page(models):
     """チャットページのUIを表示"""
@@ -96,6 +88,11 @@ def display_chat_page(models):
     )
     model_name = MODEL_NAMES[selected_model_key]
     st.info(f"選択中のモデル: **{selected_model_key}**")
+
+    # XGLM-564M選択時の警告
+    if selected_model_key == "XGLM-564M":
+        st.warning("注意: XGLM-564Mは日本語の会話性能がGemma-2-2Bに比べて低い場合があります。最適な結果を得るにはGemma-2-2Bをお勧めします。")
+
 
     # モデル取得
     pipe = models.get(selected_model_key)
@@ -195,13 +192,13 @@ def display_feedback_form():
                     combined_feedback += f": {feedback_comment}"
 
                 save_to_db(
+                    st.session_state.selected_model,
                     st.session_state.current_question,
                     st.session_state.current_answer,
                     combined_feedback,
                     correct_answer,
                     is_correct,
                     st.session_state.response_time,
-                    model_name=st.session_state.selected_model
                 )
                 st.session_state.feedback_given = True
                 st.success("フィードバックが保存されました！")
@@ -370,11 +367,3 @@ def display_data_page():
     for metric, description in metrics_info.items():
         with st.expander(f"{metric}"):
             st.write(description)
-
-# ページ表示
-if page == "チャット":
-    display_chat_page(models)
-elif page == "履歴閲覧":
-    display_history_page()
-elif page == "データ管理":
-    display_data_page()

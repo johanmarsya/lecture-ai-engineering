@@ -40,7 +40,7 @@ def init_db():
         raise e # エラーを再発生させてアプリの起動を止めるか、適切に処理する
 
 # --- データ操作関数 ---
-def save_to_db(question, answer, feedback, correct_answer, is_correct, response_time, model_name):
+def save_to_db(model_name, question, answer, feedback, correct_answer, is_correct, response_time):
     """チャット履歴と評価指標をデータベースに保存する"""
     conn = None
     try:

@@ -1,5 +1,8 @@
 # app.py
 import streamlit as st
+# --- アプリケーション設定 ---
+st.set_page_config(page_title="Multi-Model Chatbot", layout="wide")
+
 import ui                   # UIモジュール
 import llm                  # LLMモジュール
 import database             # データベースモジュール
@@ -8,8 +11,7 @@ import data                 # データモジュール
 from config import MODEL_NAMES
 from huggingface_hub import login
 
-# --- アプリケーション設定 ---
-st.set_page_config(page_title="Multi-Model Chatbot", layout="wide")
+
 
 # --- Hugging Faceトークンの取得 ---
 # トークンを取得してログイン
@@ -33,12 +35,18 @@ data.ensure_initial_data()
 
 # LLMモデルのロード
 models = {}
-for model_key, model_name in MODEL_NAMES.items():
-    models[model_key] = llm.load_model(model_name)
-    if not models[model_key]:
-        st.error(f"モデル '{model_name}' の読み込みに失敗しました。")
-        st.stop()
-
+with st.spinner("モデルをロード中..."):
+    for model_key, model_name in MODEL_NAMES.items():
+        try:
+            st.write(f"Loading model: {model_key} ({model_name})")
+            models[model_key] = llm.load_model(model_name)
+            st.success(f"{model_key}モデルの読み込みに成功しました。")
+        except Exception as e:
+            st.error(f"{model_key}モデルの読み込みに失敗しました: {e}")
+            models[model_key] = None
+if not any(models.values()):
+    st.error("全てのモデルの読み込みに失敗しました。アプリケーションを終了します。")
+    st.stop()
 
 
 # --- Streamlit アプリケーション ---
@@ -64,7 +72,7 @@ page = st.sidebar.radio(
 # --- メインコンテンツ ---
 if st.session_state.page == "チャット":
     if all(models.values()):
-        ui.display_chat_page(pipe)
+        ui.display_chat_page(models)
     else:
         st.error("チャット機能を利用できません。モデルの読み込みに失敗しました。")
 elif st.session_state.page == "履歴閲覧":
